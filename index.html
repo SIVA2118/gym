@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gym Membership System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/superagent/3.8.3/superagent.min.js"></script>
+    <style>
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        body {
+            background: url('https://e1.pxfuel.com/desktop-wallpaper/698/614/desktop-wallpaper-gym-widescreen.jpg') no-repeat center center/cover;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+
+        .wrapper {
+            display: flex; gap: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            border-radius: 16px;
+            width: 100%; max-width: 1100px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+
+        .form-section, .response-section { flex: 1; min-width: 320px; }
+        .form-section { border-right: 2px solid rgba(255, 255, 255, 0.2); padding-right: 20px; }
+
+        .header {
+            display: flex; align-items: center; justify-content: center;
+            gap: 15px; margin-bottom: 20px;
+        }
+        .header img { width: 50px; height: 50px; border-radius: 50%;}
+        .header h2 { color: white; font-size: 28px; }
+
+        input, select {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border: none; border-radius: 8px; font-size: 16px; outline: none;
+        }
+
+        .btn-group { display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 15px; gap: 10px; }
+
+        button {
+            flex: 1 1 48%; background: green; border: none; color: #000;
+            padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px;
+            cursor: pointer; transition: 0.3s;
+        }
+        button:hover { background: #a8a8a6; transform: scale(1.05); }
+
+        .response-section h3 { margin-bottom: 15px; text-align: center; color: white; }
+        .response-box {
+            background: #222; padding: 15px; border-radius: 10px; max-height: 450px;
+            overflow-y: auto; font-size: 14px; color: #f8fafa; white-space: pre-wrap;
+        }
+
+        @media (max-width: 768px) {
+            .wrapper { flex-direction: column; gap: 20px; max-width: 95%; }
+            .form-section { border-right: none; border-bottom: 2px solid rgba(255, 255, 255, 0.2); padding-bottom: 20px; }
+            .header { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Form Section -->
+        <div class="form-section">
+            <div class="header">
+                <img src="./img/logo.jpeg" alt="Gym Logo">
+                <h2>LION FITNESS</h2>
+            </div>
+
+            <input type="text" id="id" placeholder="Enter Member ID (e.g., gym001)">
+            <input type="text" id="title" placeholder="Enter Member Name">
+            <input type="date" id="joinDate">
+            <input type="date" id="expiryDate">
+
+            <!-- ✅ Membership Package Dropdown -->
+            <select id="package">
+                <option value="">Select Package</option>
+                <option value="Basic">Basic</option>
+                <option value="Standard">Standard</option>
+                <option value="Premium">Premium</option>
+            </select>
+
+            <div class="btn-group">
+                <button onclick="createMember()">Create</button>
+                <button onclick="getMembers()">Get All</button>
+                <button onclick="updateMember()">Update</button>
+                <button onclick="deleteMember()">Delete</button>
+            </div>
+
+            <!-- Search -->
+            <h3 style="margin-top:20px; color:white; text-align:center;">Search Member</h3>
+            <input type="text" id="searchId" placeholder="Enter ID to search">
+            <button style="width:100%; margin-top:10px; background:green;" onclick="searchMember()">Search</button>
+        </div>
+
+        <!-- Response Section -->
+        <div class="response-section">
+            <h3>Response</h3>
+            <div class="response-box" id="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/members';
+
+        function createMember() {
+            const id = document.getElementById('id').value;
+            const title = document.getElementById('title').value;
+            const joinDate = document.getElementById('joinDate').value;
+            const expiryDate = document.getElementById('expiryDate').value;
+            const packageType = document.getElementById('package').value;
+
+            if (!id || !title || !joinDate || !expiryDate || !packageType) {
+                alert("All fields are required!");
+                return;
+            }
+
+            superagent.post(API_URL)
+                .send({ id, title, joinDate, expiryDate, package: packageType })
+                .set('Content-Type', 'application/json')
+                .end(handleResponse);
+        }
+
+        function getMembers() {
+            superagent.get(API_URL).end((err, res) => {
+                if (err) {
+                    document.getElementById('response').textContent = 'Error: ' + err.message;
+                } else {
+                    const data = res.body;
+                    let output = '';
+                    const today = new Date();
+
+                    data.forEach(member => {
+                        const expired = new Date(member.expiryDate) < today;
+
+                        // ✅ Alert if expired
+                        if (expired) {
+                            alert(`⚠ ${member.title}'s membership expired on ${member.expiryDate}`);
+                        }
+
+                        output += `${member.id} - ${member.title} | Package: ${member.package} | Expiry: ${member.expiryDate} ${expired ? '❌ Expired' : '✅ Active'}\n`;
+                    });
+
+                    document.getElementById('response').textContent = output;
+                }
+            });
+        }
+
+        function updateMember() {
+            const id = document.getElementById('id').value;
+            const title = document.getElementById('title').value;
+            const joinDate = document.getElementById('joinDate').value;
+            const expiryDate = document.getElementById('expiryDate').value;
+            const packageType = document.getElementById('package').value;
+
+            superagent.put(`${API_URL}/${id}`)
+                .send({ title, joinDate, expiryDate, package: packageType })
+                .set('Content-Type', 'application/json')
+                .end(handleResponse);
+        }
+
+        function deleteMember() {
+            const id = document.getElementById('id').value;
+            superagent.del(`${API_URL}/${id}`).end(handleResponse);
+        }
+
+        function searchMember() {
+            const searchId = document.getElementById('searchId').value;
+            if (!searchId) {
+                alert("Please enter an ID to search.");
+                return;
+            }
+
+            superagent.get(`${API_URL}/${searchId}`).end((err, res) => {
+                if (err || !res.body || Object.keys(res.body).length === 0) {
+                    document.getElementById('response').textContent = 'Member not found';
+                } else {
+                    const member = res.body;
+                    const expired = new Date(member.expiryDate) < new Date();
+
+                    // ✅ Alert if expired
+                    if (expired) {
+                        alert(`⚠ Membership for ${member.title} (ID: ${member.id}) has expired on ${member.expiryDate}`);
+                    }
+
+                    document.getElementById('response').textContent =
+                        `ID: ${member.id}
+Name: ${member.title}
+Package: ${member.package}
+Join Date: ${member.joinDate}
+Expiry Date: ${member.expiryDate}
+Status: ${expired ? '❌ Expired' : '✅ Active'}`;
+                }
+            });
+        }
+
+        function handleResponse(err, res) {
+            if (err) {
+                document.getElementById('response').textContent = 'Error: ' + err.message;
+            } else {
+                document.getElementById('response').textContent = JSON.stringify(res.body, null, 2);
+            }
+        }
+    </script>
+</body>
+</html>
